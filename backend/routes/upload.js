@@ -4,6 +4,8 @@ const fs = require("fs");
 const PDFParser = require("pdf2json");
 const { askLLM } = require("../services/llm.js");
 const { chunkText } = require("../utils/chunking.js");
+const { createEmbeddings } = require("../services/embeddingService.js");
+const { storeVectors, similaritySearch } = require("../services/vectorStore.js");
 
 const router = express.Router();
 
@@ -28,7 +30,7 @@ function extractTextFromPDF(filePath) {
     });
 }
 
-// Upload PDF and get initial summary
+// Upload PDF and embed
 router.post("/", upload.single("pdf"), async (req, res) => {
     const filePath = req.file?.path;
 
@@ -45,11 +47,16 @@ router.post("/", upload.single("pdf"), async (req, res) => {
         const chunks = chunkText(text);
         console.log(`STEP 3: Chunked into ${chunks.length} chunks`);
 
+        const vectors = await createEmbeddings(chunks);
+        console.log("STEP 4: Embeddings created");
+
+        storeVectors(chunks, vectors);
+        console.log("STEP 5: Vectors stored");
+
         const question = req.body.question || "Summarize this document.";
         const limitedText = text.substring(0, 12000);
-
         const answer = await askLLM(limitedText, question);
-        console.log("STEP 4: LLM responded");
+        console.log("STEP 6: LLM responded");
 
         res.json({
             message: "Research complete",
@@ -64,7 +71,7 @@ router.post("/", upload.single("pdf"), async (req, res) => {
     }
 });
 
-// Ask a question about an already uploaded PDF
+// Ask question using RAG
 router.post("/ask", async (req, res) => {
     const { filename, question } = req.body;
 
@@ -79,16 +86,20 @@ router.post("/ask", async (req, res) => {
     }
 
     try {
-        console.log("STEP 1: Loading file:", filename);
+        console.log("STEP 1: Embedding question");
+        const { HfInference } = require("@huggingface/inference");
+        const hf = new HfInference(process.env.HF_API_KEY);
+        const queryVector = Array.from(await hf.featureExtraction({
+            model: "sentence-transformers/all-MiniLM-L6-v2",
+            inputs: question,
+        }));
 
-        const text = await extractTextFromPDF(filePath);
-        console.log("STEP 2: PDF parsed");
+        console.log("STEP 2: Searching relevant chunks");
+        const relevantChunks = similaritySearch(queryVector, 3);
+        const context = relevantChunks.join("\n\n");
 
-        const chunks = chunkText(text);
-        console.log(`STEP 3: Chunked into ${chunks.length} chunks`);
-
-        const limitedText = text.substring(0, 12000);
-        const answer = await askLLM(limitedText, question);
+        console.log("STEP 3: Calling LLM with relevant context");
+        const answer = await askLLM(context, question);
         console.log("STEP 4: LLM responded");
 
         res.json({ question, answer });
