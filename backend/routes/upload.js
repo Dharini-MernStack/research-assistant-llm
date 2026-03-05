@@ -3,6 +3,7 @@ const multer = require("multer");
 const fs = require("fs");
 const PDFParser = require("pdf2json");
 const { askLLM } = require("../services/llm.js");
+const { chunkText } = require("../utils/chunking.js");
 
 const router = express.Router();
 
@@ -37,10 +38,12 @@ router.post("/", upload.single("pdf"), async (req, res) => {
         }
 
         console.log("STEP 1: File received:", req.file.originalname);
-        console.log("STEP 2: Reading file");
 
         const text = await extractTextFromPDF(filePath);
-        console.log("STEP 3: PDF parsed");
+        console.log("STEP 2: PDF parsed");
+
+        const chunks = chunkText(text);
+        console.log(`STEP 3: Chunked into ${chunks.length} chunks`);
 
         const question = req.body.question || "Summarize this document.";
         const limitedText = text.substring(0, 12000);
@@ -50,7 +53,8 @@ router.post("/", upload.single("pdf"), async (req, res) => {
 
         res.json({
             message: "Research complete",
-            filename: req.file.filename,  // return filename for future questions
+            filename: req.file.filename,
+            chunks: chunks.length,
             answer,
         });
 
@@ -80,9 +84,12 @@ router.post("/ask", async (req, res) => {
         const text = await extractTextFromPDF(filePath);
         console.log("STEP 2: PDF parsed");
 
+        const chunks = chunkText(text);
+        console.log(`STEP 3: Chunked into ${chunks.length} chunks`);
+
         const limitedText = text.substring(0, 12000);
         const answer = await askLLM(limitedText, question);
-        console.log("STEP 3: LLM responded");
+        console.log("STEP 4: LLM responded");
 
         res.json({ question, answer });
 
