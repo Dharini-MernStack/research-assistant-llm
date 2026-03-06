@@ -1,3 +1,4 @@
+
 const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
@@ -6,6 +7,7 @@ const { askLLM } = require("../services/llm.js");
 const { chunkText } = require("../utils/chunking.js");
 const { createEmbeddings } = require("../services/embeddingService.js");
 const { storeVectors, similaritySearch } = require("../services/vectorStore.js");
+const { retrieveRelevantChunks } = require("../services/retriever.js");
 
 const router = express.Router();
 
@@ -24,12 +26,14 @@ function extractTextFromPDF(filePath) {
             const text = pdfData.Pages.map(page =>
                 page.Texts.map(t => decodeURIComponent(t.R.map(r => r.T).join(""))).join(" ")
             ).join("\n");
-            resolve(text);
+
+            // Fix spaced out characters like "P y t h o n" → "Python"
+            const cleaned = text.replace(/(?<=\b\w) (?=\w\b)/g, "");
+            resolve(cleaned);
         });
         pdfParser.loadPDF(filePath);
     });
 }
-
 // Upload PDF and embed
 router.post("/", upload.single("pdf"), async (req, res) => {
     const filePath = req.file?.path;
@@ -71,7 +75,6 @@ router.post("/", upload.single("pdf"), async (req, res) => {
     }
 });
 
-// Ask question using RAG
 router.post("/ask", async (req, res) => {
     const { filename, question } = req.body;
 
@@ -86,28 +89,29 @@ router.post("/ask", async (req, res) => {
     }
 
     try {
-        console.log("STEP 1: Embedding question");
-        const { HfInference } = require("@huggingface/inference");
-        const hf = new HfInference(process.env.HF_API_KEY);
-        const queryVector = Array.from(await hf.featureExtraction({
-            model: "sentence-transformers/all-MiniLM-L6-v2",
-            inputs: question,
+        console.log("STEP 1: Retrieving relevant chunks for:", question);
+        const results = await retrieveRelevantChunks(question, 5);
+
+        const context = results.map(r => r.chunk).join("\n\n");
+        const citations = results.map(r => ({
+            chunkIndex: r.chunkIndex,
+            score: r.score,
+            preview: r.chunk.substring(0, 150) + "...",
         }));
 
-        console.log("STEP 2: Searching relevant chunks");
-        const relevantChunks = similaritySearch(queryVector, 3);
-        const context = relevantChunks.join("\n\n");
-
-        console.log("STEP 3: Calling LLM with relevant context");
+        console.log("STEP 2: Calling LLM with relevant context");
         const answer = await askLLM(context, question);
-        console.log("STEP 4: LLM responded");
+        console.log("STEP 3: LLM responded");
 
-        res.json({ question, answer });
+        res.json({
+            question,
+            answer,
+            citations,  // which chunks were used to answer
+        });
 
     } catch (error) {
         console.error("Error:", error.message);
         res.status(500).json({ error: "Processing failed" });
     }
 });
-
 module.exports = router;

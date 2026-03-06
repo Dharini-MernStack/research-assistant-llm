@@ -17,13 +17,13 @@ const storeVectors = (chunks, vectors) => {
 const similaritySearch = (queryVector, topK = 3) => {
     const scores = storedVectors.map((vec, i) => ({
         chunk: storedChunks[i],
-        score: cosineSimilarity(queryVector, vec),
+        chunkIndex: i,
+        score: parseFloat(cosineSimilarity(queryVector, vec).toFixed(4)),
     }));
 
     return scores
         .sort((a, b) => b.score - a.score)
-        .slice(0, topK)
-        .map(r => r.chunk);
+        .slice(0, topK);
 };
 
 module.exports = { storeVectors, similaritySearch };

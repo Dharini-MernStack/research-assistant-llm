@@ -10,14 +10,16 @@ async function askLLM(contextText, question) {
     messages: [
       {
         role: "system",
-        content: "You are a research assistant. Answer ONLY using the provided document content. If answer is not in document, say 'Not found in document.'",
+        content: `You are a research assistant. Answer the question using the provided document context. 
+        Be helpful and extract relevant information even if it's not explicitly stated. 
+        Only say 'Not found in document' if there is absolutely no related information.`,
       },
       {
         role: "user",
-        content: `Document Content:\n${contextText}\n\nQuestion:\n${question}`,
+        content: `Document Context:\n${contextText}\n\nQuestion:\n${question}`,
       },
     ],
-    temperature: 0.2,
+    temperature: 0.3,
   });
 
   return response.choices[0].message.content;

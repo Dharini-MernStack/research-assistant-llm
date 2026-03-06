@@ -1,9 +1,13 @@
-const chunkText = (text, chunkSize = 1000) => {
+const chunkText = (text, chunkSize = 2000, overlap = 200) => {
     const chunks = [];
-    for (let i = 0; i < text.length; i += chunkSize) {
+    let i = 0;
+    while (i < text.length) {
         chunks.push(text.slice(i, i + chunkSize));
+        i += chunkSize - overlap; // overlap keeps context between chunks
     }
     return chunks;
 };
+
+module.exports = { chunkText };
 
 module.exports = { chunkText };
