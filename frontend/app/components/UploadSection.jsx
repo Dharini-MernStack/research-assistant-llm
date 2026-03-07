@@ -21,9 +21,7 @@ export default function UploadSection() {
     formData.append("question", "Summarize this document in 3 sentences.");
 
     try {
-      const res = await axios.post("http://localhost:5000/upload", formData);
-      setUploadedFile(res.data.filename);
-      setSummary(res.data.answer);
+const res = await axios.post(`https://research-assistant-backend-trsr.onrender.com/upload`, formData);      setSummary(res.data.answer);
     } catch (err) {
       setError("Upload failed. Make sure the backend is running.");
     } finally {
