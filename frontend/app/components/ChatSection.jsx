@@ -27,22 +27,23 @@ export default function ChatSection({ filename }) {
 
   // Before submitting, fetch relevant chunks from backend
   const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  e.preventDefault();
+  if (!input || !input.trim()) return;
 
-    try {
-      // Get relevant chunks from RAG backend
-      const data = await researchAssistant.askQuestion(filename, input);
-      const relevantContext = data.citations
-        .map(c => c.preview)
-        .join("\n\n");
-      setContext(relevantContext);
-    } catch (err) {
-      console.error("Error fetching context:", err);
-    }
+  try {
+    const data = await researchAssistant.askQuestion(filename, input);
 
-    handleSubmit(e);
-  };
+    const relevantContext = data?.citations
+  ?.map(c => c.preview)
+  .join("\n\n") || "";
+
+    setContext(relevantContext);
+  } catch (err) {
+    console.error("Error fetching context:", err);
+  }
+
+  handleSubmit(e);
+};
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col h-[500px]">
@@ -87,7 +88,7 @@ export default function ChatSection({ filename }) {
         />
         <button
           type="submit"
-          disabled={!input.trim() || isLoading}
+          disabled={!input || !input.trim() || isLoading}
           className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           Send
