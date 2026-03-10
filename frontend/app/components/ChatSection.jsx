@@ -87,12 +87,12 @@ export default function ChatSection({ filename }) {
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400 transition"
         />
         <button
-          type="submit"
-          disabled={!input || !input.trim() || isLoading}
-          className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-        >
-          Send
-        </button>
+  type="submit"
+  disabled={!input || !input.trim()}
+  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+>
+  Send
+</button>
       </form>
     </div>
   );
