@@ -4,7 +4,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 async function askLLM(contextText, question) {
     const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash",
         systemInstruction: `You are a research assistant. Answer the question using the 
         provided document context. Be helpful and extract relevant information. 
         Only say 'Not found in document' if there is absolutely no related information.`,

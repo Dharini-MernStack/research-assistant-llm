@@ -9,7 +9,7 @@ export async function POST(req) {
     const { messages, context } = await req.json();
 
     const result = streamText({
-        model: google("gemini-1.5-flash"),
+     model: google("gemini-2.0-flash"),
         system: `You are a research assistant. Answer ONLY using the provided document context.
         If the answer is not in the document, say 'Not found in document.'
         
