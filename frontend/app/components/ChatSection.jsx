@@ -1,7 +1,7 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
 import { useRef, useEffect, useState } from "react";
-import researchAssistant from "../../lib/api";
+import researchAssistant from "../lib/api";
 
 export default function ChatSection({ filename }) {
   const [context, setContext] = useState("");
