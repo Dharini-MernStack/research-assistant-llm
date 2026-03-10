@@ -16,13 +16,11 @@ A full-stack AI-powered research assistant that lets you upload any PDF document
 ## 📸 Screenshots
 
 ### Upload PDF
-![Upload PDF](./screenshots/upload.png)
 
 ### Chat Interface
-![Chat Interface](./screenshots/chat.png)
 
 ### Answer with Citations
-![Citations](./screenshots/citations.png)
+
 
 ---
 
@@ -263,5 +261,6 @@ Pull requests are welcome! For major changes, please open an issue first.
 ## 👨‍💻 Author
 
 Built with ❤️ by [Dharini](https://github.com/Dharini-MernStack/research-assistant-llm-project)
+
 
 > ⭐ If this project helped you, please give it a star!
