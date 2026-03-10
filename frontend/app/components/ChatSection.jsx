@@ -5,20 +5,20 @@ import researchAssistant from "../../lib/api";
 
 export default function ChatSection({ filename }) {
   const [context, setContext] = useState("");
+  const [input, setInput] = useState("");
   const bottomRef = useRef(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
-    useChat({
-      api: "/api/chat",
-      body: { context },
-      initialMessages: [
-        {
-          id: "welcome",
-          role: "assistant",
-          content: "Hi! I've read the document. Ask me anything about it.",
-        },
-      ],
-    });
+  const { messages, handleSubmit, isLoading, error } = useChat({
+    api: "/api/chat",
+    body: { context },
+    initialMessages: [
+      {
+        id: "welcome",
+        role: "assistant",
+        content: "Hi! I've read the document. Ask me anything about it.",
+      },
+    ],
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -27,7 +27,7 @@ export default function ChatSection({ filename }) {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    const question = (input || "").trim();
+    const question = input.trim();
     if (!question) return;
 
     try {
@@ -41,17 +41,22 @@ export default function ChatSection({ filename }) {
       console.error("Error fetching context:", err);
     }
 
-    handleSubmit(e);
+    handleSubmit(e, {
+      data: {
+        message: question,
+      },
+    });
+
+    setInput("");
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col h-[500px]">
+
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-100">
         <h2 className="text-lg font-semibold text-gray-800">Chat</h2>
-        <p className="text-xs text-gray-400">
-          Ask anything about the document
-        </p>
+        <p className="text-xs text-gray-400">Ask anything about the document</p>
       </div>
 
       {/* Messages */}
@@ -98,15 +103,15 @@ export default function ChatSection({ filename }) {
         className="px-6 py-4 border-t border-gray-100 flex gap-3"
       >
         <input
-          value={input || ""}
-          onChange={handleInputChange}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Ask a question..."
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400 transition"
         />
 
         <button
           type="submit"
-          disabled={!input || !input.trim()}
+          disabled={!input.trim()}
           className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           Send
