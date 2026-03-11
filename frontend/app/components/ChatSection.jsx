@@ -7,7 +7,7 @@ export default function ChatSection({ filename }) {
   const [context, setContext] = useState("");
   const bottomRef = useRef(null);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
+const { messages, input = "", handleInputChange, handleSubmit, isLoading, error } = useChat({
     api: "/api/chat",
     body: { context },
     initialMessages: [
