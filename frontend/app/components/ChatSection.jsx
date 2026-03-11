@@ -5,9 +5,10 @@ import researchAssistant from "../../lib/api";
 
 export default function ChatSection({ filename }) {
   const [context, setContext] = useState("");
+  const [userInput, setUserInput] = useState("");
   const bottomRef = useRef(null);
 
-const { messages, input = "", handleInputChange, handleSubmit, isLoading, error } = useChat({
+  const { messages, append, isLoading, error } = useChat({
     api: "/api/chat",
     body: { context },
     initialMessages: [
@@ -23,19 +24,31 @@ const { messages, input = "", handleInputChange, handleSubmit, isLoading, error 
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!userInput.trim() || isLoading) return;
+
+    const question = userInput.trim();
+    setUserInput("");
 
     try {
-      const data = await researchAssistant.askQuestion(filename, input);
+      const data = await researchAssistant.askQuestion(filename, question);
       const relevantContext = data?.citations?.map((c) => c.preview).join("\n\n") || "";
       setContext(relevantContext);
     } catch (err) {
       console.error("Error fetching context:", err);
     }
 
-    handleSubmit(e);
+    await append({
+      role: "user",
+      content: question,
+    });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   return (
@@ -69,22 +82,23 @@ const { messages, input = "", handleInputChange, handleSubmit, isLoading, error 
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleFormSubmit} className="px-6 py-4 border-t border-gray-100 flex gap-3">
+      <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
         <input
           type="text"
-          value={input}
-          onChange={handleInputChange}
+          value={userInput}
+          onChange={(e) => setUserInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Ask a question..."
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400 transition"
         />
         <button
-          type="submit"
-          disabled={!input.trim() || isLoading}
+          onClick={handleSend}
+          disabled={!userInput.trim() || isLoading}
           className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           Send
         </button>
-      </form>
+      </div>
     </div>
   );
 }
