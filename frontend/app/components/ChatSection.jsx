@@ -72,7 +72,7 @@ export default function ChatSection({ filename }) {
       <form onSubmit={handleFormSubmit} className="px-6 py-4 border-t border-gray-100 flex gap-3">
         <input
           value={input}
-          onChange={handleInputChange}  {/* ← use useChat's handler */}
+          onChange={handleInputChange}  
           placeholder="Ask a question..."
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-400 transition"
         />
