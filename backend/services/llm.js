@@ -1,20 +1,69 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 const Groq = require("groq-sdk");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-async function askWithGemini(contextText, question) {
-    const model = genAI.getGenerativeModel({
+// Tool declaration — Gemini will decide when to call this
+const retrieveContextTool = {
+    name: "retrieve_document_context",
+    description: "Retrieves the most relevant sections from the uploaded document based on a search query. Always call this tool before answering any question about the document.",
+    parametersJsonSchema: {
+        type: "object",
+        properties: {
+            query: {
+                type: "string",
+                description: "The search query to find relevant document sections",
+            },
+        },
+        required: ["query"],
+    },
+};
+
+async function askWithGemini(question) {
+    const { retrieveRelevantChunks } = require("./retriever.js");
+
+    // Step 1: Ask Gemini — it will call the tool
+    const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",
-        systemInstruction: `You are a research assistant. Answer the question using the 
-        provided document context. Be helpful and extract relevant information. 
-        Only say 'Not found in document' if there is absolutely no related information.`,
+        contents: question,
+        config: {
+            systemInstruction: `You are a research assistant with access to a document retrieval tool. 
+            Always use retrieve_document_context to search the document before answering.
+            Only say "Not found in document" if the tool returns no relevant content.`,
+            tools: [{ functionDeclarations: [retrieveContextTool] }],
+        },
     });
 
-    const prompt = `Document Context:\n${contextText}\n\nQuestion:\n${question}`;
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    // Step 2: Handle tool call
+    const functionCall = response.functionCalls?.[0];
+
+    if (functionCall?.name === "retrieve_document_context") {
+        console.log("🔧 Tool called — query:", functionCall.args.query);
+
+        // Step 3: Execute retriever
+        const results = await retrieveRelevantChunks(functionCall.args.query, 5);
+        const context = results.map((r) => r.chunk).join("\n\n");
+        console.log(`📄 Retrieved ${results.length} chunks`);
+
+        // Step 4: Send tool result back to Gemini
+        const finalResponse = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: [
+                { role: "user", parts: [{ text: question }] },
+                { role: "model", parts: [{ functionCall: { name: functionCall.name, args: functionCall.args } }] },
+                { role: "user", parts: [{ functionResponse: { name: functionCall.name, response: { context } } }] },
+            ],
+            config: {
+                systemInstruction: `You are a research assistant. Answer based on the retrieved document context only.
+                Only say "Not found in document" if there is truly no relevant information.`,
+            },
+        });
+
+        return finalResponse.text;
+    }
+
+    return response.text;
 }
 
 async function askWithGroq(contextText, question) {
@@ -23,9 +72,8 @@ async function askWithGroq(contextText, question) {
         messages: [
             {
                 role: "system",
-                content: `You are a research assistant. Answer the question using the provided document context. 
-                Be helpful and extract relevant information even if it's not explicitly stated. 
-                Only say 'Not found in document' if there is absolutely no related information.`,
+                content: `You are a research assistant. Answer using the provided document context.
+                Only say 'Not found in document' if there is no relevant information.`,
             },
             {
                 role: "user",
@@ -39,15 +87,13 @@ async function askWithGroq(contextText, question) {
 
 async function askLLM(contextText, question) {
     try {
-        console.log("Trying Gemini...");
-        const answer = await askWithGemini(contextText, question);
-        console.log("Gemini responded successfully");
+        console.log("🤖 Trying Gemini with tool calling...");
+        const answer = await askWithGemini(question);
+        console.log("✅ Gemini responded");
         return answer;
     } catch (err) {
-        console.warn("Gemini failed, falling back to Groq:", err.message);
-        const answer = await askWithGroq(contextText, question);
-        console.log("Groq fallback responded successfully");
-        return answer;
+        console.warn("⚠️ Gemini failed, falling back to Groq:", err.message);
+        return await askWithGroq(contextText, question);
     }
 }
 
