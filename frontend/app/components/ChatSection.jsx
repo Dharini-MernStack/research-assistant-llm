@@ -1,24 +1,14 @@
 "use client";
-import { useChat } from "@ai-sdk/react";
-import { useRef, useEffect, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import researchAssistant from "../../lib/api";
 
 export default function ChatSection({ filename }) {
-  const [context, setContext] = useState("");
+  const [messages, setMessages] = useState([
+    { id: "welcome", role: "assistant", content: "Hi! I've read the document. Ask me anything about it." }
+  ]);
   const [userInput, setUserInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef(null);
-
-  const { messages, append, isLoading, error } = useChat({
-    api: "/api/chat",
-    body: { context },
-    initialMessages: [
-      {
-        id: "welcome",
-        role: "assistant",
-        content: "Hi! I've read the document. Ask me anything about it.",
-      },
-    ],
-  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,19 +20,28 @@ export default function ChatSection({ filename }) {
     const question = userInput.trim();
     setUserInput("");
 
+    // Add user message
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: "user", content: question }]);
+    setIsLoading(true);
+
     try {
       const data = await researchAssistant.askQuestion(filename, question);
-      const relevantContext = data?.citations?.map((c) => c.preview).join("\n\n") || "";
-      setContext(relevantContext);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.answer,
+      }]);
     } catch (err) {
-      console.error("Error fetching context:", err);
+      console.error("Error:", err);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Something went wrong. Please try again.",
+      }]);
+    } finally {
+      setIsLoading(false);
     }
-
-    append({
-      role: "user",
-      content: question,
-    });
-  };                              
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -55,7 +54,7 @@ export default function ChatSection({ filename }) {
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col h-[500px]">
       <div className="px-6 py-4 border-b border-gray-100">
         <h2 className="text-lg font-semibold text-gray-800">Chat</h2>
-        <p className="text-xs text-gray-400">Ask anything about the document</p>
+        <p className="text-xs text-gray-400">Ask anything about the document · Powered by Vercel AI SDK</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -73,10 +72,6 @@ export default function ChatSection({ filename }) {
               Thinking...
             </div>
           </div>
-        )}
-
-        {error && (
-          <div className="text-red-500 text-xs text-center">{error.message}</div>
         )}
 
         <div ref={bottomRef} />
