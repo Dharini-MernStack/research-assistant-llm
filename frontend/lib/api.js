@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://research-assistant-backend-trsr.onrender.com";
+
 
 const client = axios.create({
     baseURL: BASE_URL,
@@ -14,11 +15,9 @@ const researchAssistant = {
         const formData = new FormData();
         formData.append("pdf", file);
         formData.append("question", question);
-
         const res = await client.post("/upload", formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });
-
         return res.data;
     },
 
@@ -32,5 +31,7 @@ const researchAssistant = {
         return res.data;
     },
 };
+
+
 
 export default researchAssistant;

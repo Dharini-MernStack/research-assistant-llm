@@ -38,11 +38,10 @@ export default function ChatSection({ filename }) {
       console.error("Error fetching context:", err);
     }
 
-    await append({
-      role: "user",
-      content: question,
-    });
-  };
+    append({
+    role: "user",
+    content: question,
+});
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
