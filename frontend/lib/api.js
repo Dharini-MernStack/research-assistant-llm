@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://research-assistant-backend-trsr.onrender.com";
+const BASE_URL =  "https://research-assistant-backend-trsr.onrender.com";
 
 
 const client = axios.create({
