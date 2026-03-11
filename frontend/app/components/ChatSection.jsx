@@ -39,9 +39,10 @@ export default function ChatSection({ filename }) {
     }
 
     append({
-    role: "user",
-    content: question,
-});
+      role: "user",
+      content: question,
+    });
+  };                              
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
