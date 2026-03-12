@@ -8,7 +8,17 @@ An AI-powered research assistant that lets you upload any PDF and have a real co
 
 ---
 
+## 📸 Screenshots
 
+### Upload a PDF & Get an Instant Summary
+![Upload Screenshot](screenshots/upload.png)
+
+### Ask Questions — Answers Stream in Real Time
+![Chat Screenshot](screenshots/chat.png)
+![Chat Screenshot](screenshots/chat1.png)
+
+### Citations Powered by RAG Retrieval
+![Citations Screenshot](screenshots/citations.png)
 ---
 
 ## ✨ Features
