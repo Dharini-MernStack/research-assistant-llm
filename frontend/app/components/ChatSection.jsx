@@ -30,7 +30,7 @@ export default function ChatSection({ filename }) {
         let context = "";
         try {
             const data = await researchAssistant.askQuestion(filename, question);
-            context = data?.citations?.map((c) => c.preview).join("\n\n") || "";
+context = data?.answer || data?.citations?.map((c) => c.preview).join("\n\n") || "";
         } catch (err) {
             if (err?.response?.status === 404 || err?.response?.status === 500) {
                 setMessages((prev) =>
