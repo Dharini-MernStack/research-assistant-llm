@@ -15,71 +15,74 @@ export default function ChatSection({ filename }) {
     }, [messages]);
 
     const handleSend = async () => {
-        if (!userInput.trim() || isLoading) return;
+    if (!userInput.trim() || isLoading) return;
 
-        const question = userInput.trim();
-        setUserInput("");
-        setIsLoading(true);
+    const question = userInput.trim();
+    setUserInput("");
+    setIsLoading(true);
 
-        // Add user message
-        setMessages((prev) => [...prev, { id: Date.now().toString(), role: "user", content: question }]);
+    setMessages((prev) => [...prev, { id: Date.now().toString(), role: "user", content: question }]);
 
-        // Add empty assistant message placeholder
-        const assistantId = (Date.now() + 1).toString();
-        setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+    const assistantId = (Date.now() + 1).toString();
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
 
+    try {
+        let context = "";
         try {
-            // Fetch RAG context from backend
-            let context = "";
-            try {
-                const data = await researchAssistant.askQuestion(filename, question);
-                context = data?.citations?.map((c) => c.preview).join("\n\n") || "";
-            } catch (err) {
-                console.error("Error fetching context:", err);
-            }
-
-            // Stream response from /api/chat
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    messages: [{ role: "user", content: question }],
-                    context,
-                }),
-            });
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let fullText = "";
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                fullText += chunk;
-
-                // Update message progressively — Gemini-like typing
+            const data = await researchAssistant.askQuestion(filename, question);
+            context = data?.citations?.map((c) => c.preview).join("\n\n") || "";
+        } catch (err) {
+            if (err?.response?.status === 404 || err?.response?.status === 500) {
                 setMessages((prev) =>
                     prev.map((msg) =>
-                        msg.id === assistantId ? { ...msg, content: fullText } : msg
+                        msg.id === assistantId
+                            ? { ...msg, content: "⚠️ Session expired — the server restarted and lost your document. Please re-upload your PDF to continue." }
+                            : msg
                     )
                 );
+                setIsLoading(false);
+                return;
             }
-        } catch (err) {
-            console.error("Stream error:", err);
+            console.error("Error fetching context:", err);
+        }
+
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                messages: [{ role: "user", content: question }],
+                context,
+            }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            fullText += chunk;
             setMessages((prev) =>
                 prev.map((msg) =>
-                    msg.id === assistantId
-                        ? { ...msg, content: "Something went wrong. Please try again." }
-                        : msg
+                    msg.id === assistantId ? { ...msg, content: fullText } : msg
                 )
             );
-        } finally {
-            setIsLoading(false);
         }
-    };
-
+    } catch (err) {
+        console.error("Stream error:", err);
+        setMessages((prev) =>
+            prev.map((msg) =>
+                msg.id === assistantId
+                    ? { ...msg, content: "Something went wrong. Please try again." }
+                    : msg
+            )
+        );
+    } finally {
+        setIsLoading(false);
+    }
+};
     const handleKeyDown = (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
