@@ -1,66 +1,95 @@
-# 🔍 Research Assistant LLM
+# 🔬 RAG Research Assistant
 
-A full-stack AI-powered research assistant that lets you upload any PDF document and ask questions about it in natural language. Built on a **Retrieval-Augmented Generation (RAG)** architecture — it doesn't just summarize, it finds the most relevant sections of your document and generates precise, context-aware answers with citations.
+An AI-powered research assistant that lets you upload any PDF and have a real conversation with it. Built with a full RAG (Retrieval-Augmented Generation) pipeline, Gemini tool calling, and real-time streaming — all on a free tier stack.
 
----
-
-## 🚀 Live Demo
-
-🔗 **Frontend:** [https://research-assistant-frontend.onrender.com](https://research-assistant-frontend.onrender.com)  
-🔗 **Backend:** [https://research-assistant-backend-trsr.onrender.com](https://research-assistant-backend-trsr.onrender.com)
-
-> ⚡ First upload may take up to 60 seconds to wake the server (free tier cold start)
+**Live Demo:**
+- 🌐 Frontend: https://research-assistant-frontend-i7da.onrender.com
+- ⚙️ Backend: https://research-assistant-backend-trsr.onrender.com
 
 ---
-
-## 📸 Screenshots
-
-### Upload PDF
-
-### Chat Interface
-
-### Answer with Citations
 
 
 ---
 
-## 🧠 How It Works
+## ✨ Features
+
+### 🧠 RAG Pipeline (Retrieval-Augmented Generation)
+- Upload any PDF and the backend automatically parses, chunks, and embeds it
+- Uses HuggingFace `all-MiniLM-L6-v2` for semantic embeddings
+- In-memory vector store with cosine similarity search
+- Only the most relevant document chunks are sent to the LLM — no hallucination from unrelated context
+
+### 🔧 Gemini Tool Calling
+- Gemini doesn't just answer questions — it **decides** when to call the `retrieve_document_context` tool
+- The LLM autonomously triggers document retrieval based on the user's question
+- Tool results are fed back to Gemini for a grounded, accurate final answer
+- Logged in backend: `🔧 Tool called`, `📄 Retrieved N chunks`, `✅ Gemini responded`
+
+### ⚡ Real-Time Streaming with `@google/genai`
+- Uses the official Google GenAI JS SDK (`@google/genai`) for streaming responses
+- Answers stream in word-by-word, just like the Gemini interface
+- Bouncing dots animation while the model is thinking
+- Progressive text rendering using `ReadableStream` and `getReader()`
+
+### 🔄 Automatic Fallback to Groq
+- If Gemini hits its free-tier rate limit, the backend automatically falls back to **Groq (LLaMA 3.1)**
+- Zero downtime — users never see an error
+- Logged transparently: `⚠️ Gemini failed, falling back to Groq`
+
+### 📄 PDF Parsing & Smart Chunking
+- Parses PDFs using `pdf2json` with `decodeURIComponent` for clean text
+- Regex fix for spaced characters (e.g., `P y t h o n → Python`)
+- Overlapping chunks (2000 chars with 200 char overlap) for better context continuity
+
+### 📌 Citation Support
+- Every answer includes source citations with chunk index, similarity score, and a 150-char preview
+- Frontend displays citations alongside the answer so users can verify sources
+
+### 💬 Vercel AI SDK Integration
+- Frontend uses `@ai-sdk/react` and `streamText` for the chat interface
+- `/api/chat` is a Next.js route handler that streams directly from Gemini
+- Context from RAG retrieval is injected into every streamed response
+
+---
+
+## 🏗️ Architecture
 
 ```
-PDF Upload → Text Extraction → Chunking → Embeddings → Vector Store
-                                                              ↓
-                                          Question → Embed → Similarity Search
-                                                              ↓
-                                                    Top Chunks → LLM → Answer + Citations
+User uploads PDF
+      ↓
+pdf2json parses → chunks (2000 chars, 200 overlap)
+      ↓
+HuggingFace all-MiniLM-L6-v2 creates embeddings
+      ↓
+In-memory vector store (cosine similarity)
+      ↓
+User asks question
+      ↓
+Gemini calls retrieve_document_context tool (Tool Calling)
+      ↓
+Retriever embeds query → similarity search → top 5 chunks
+      ↓
+Tool result returned to Gemini
+      ↓
+Gemini streams final answer → Frontend renders progressively
 ```
-
-1. **Upload a PDF** — parsed using `pdf2json`
-2. **Text is chunked** — split into overlapping 2000-character chunks
-3. **Embeddings created** — using HuggingFace `sentence-transformers/all-MiniLM-L6-v2` (free)
-4. **Stored in vector store** — in-memory cosine similarity search
-5. **Ask a question** — question is embedded and compared against chunks
-6. **Top chunks retrieved** — most relevant sections fetched
-7. **LLM generates answer** — using Google Gemini via Vercel AI SDK (streaming)
-8. **Citations returned** — shows exactly which chunks were used
 
 ---
 
-## 🛠 Tech Stack
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Runtime | Node.js + Express |
+| Runtime | Node.js + Express (CommonJS) |
 | PDF Parsing | pdf2json |
 | Embeddings | HuggingFace `all-MiniLM-L6-v2` |
 | Vector Store | In-memory cosine similarity |
-| LLM | Google Gemini `gemini-1.5-flash` |
-| AI SDK | Vercel AI SDK (`useChat` hook) |
-| Streaming | Vercel AI SDK `streamText` |
-| Frontend | Next.js + Tailwind CSS |
+| LLM (Primary) | Google Gemini `gemini-2.0-flash` via `@google/genai` |
+| LLM (Fallback) | Groq `llama-3.1-8b-instant` |
+| AI SDK | Vercel AI SDK (`@ai-sdk/react`, `streamText`) |
+| Frontend | Next.js 14 + Tailwind CSS |
 | File Handling | Multer |
-| Deployment | Render (frontend + backend) |
-
-> 💡 **Fully free** — no OpenAI credits needed. Uses Gemini + HuggingFace free tiers.
+| Deployment | Render (free tier) |
 
 ---
 
@@ -70,47 +99,39 @@ PDF Upload → Text Extraction → Chunking → Embeddings → Vector Store
 research-assistant-llm/
 ├── backend/
 │   ├── routes/
-│   │   └── upload.js            # Upload + Ask endpoints
+│   │   └── upload.js          ← PDF upload + /ask endpoint
 │   ├── services/
-│   │   ├── llm.js               # Google Gemini integration
-│   │   ├── embeddingService.js  # HuggingFace embeddings
-│   │   ├── vectorStore.js       # In-memory vector store with cosine similarity
-│   │   └── retriever.js         # Similarity search retriever
+│   │   ├── llm.js             ← Gemini tool calling + Groq fallback
+│   │   ├── embeddingService.js← HuggingFace embeddings
+│   │   ├── vectorStore.js     ← In-memory cosine similarity
+│   │   └── retriever.js       ← Query embedding + similarity search
 │   ├── utils/
-│   │   └── chunking.js          # Text chunking with overlap
-│   ├── uploads/                 # Uploaded PDFs stored here
-│   └── server.js
+│   │   └── chunking.js        ← Overlapping text chunking
+│   ├── uploads/               ← Uploaded PDFs (gitignored)
+│   └── server.js              ← Express app entry point
 ├── frontend/
 │   ├── app/
-│   │   ├── api/
-│   │   │   └── chat/
-│   │   │       └── route.js     # Next.js API route for streaming chat
+│   │   ├── api/chat/
+│   │   │   └── route.js       ← @google/genai streaming route
 │   │   ├── components/
-│   │   │   ├── UploadSection.jsx # PDF upload UI
-│   │   │   └── ChatSection.jsx  # Chat interface with useChat hook
-│   │   ├── layout.js
+│   │   │   ├── UploadSection.jsx ← PDF upload UI
+│   │   │   └── ChatSection.jsx   ← Streaming chat UI
 │   │   └── page.js
 │   └── lib/
-│       └── api.js               # SDK layer for all backend API calls
+│       └── api.js             ← Axios client for backend
 └── README.md
 ```
 
 ---
 
-## ⚙️ Setup & Installation
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js v18+
-- Free [Google Gemini API key](https://aistudio.google.com)
-- Free [HuggingFace API token](https://huggingface.co/settings/tokens)
+- Node.js 18+
+- Free API keys: [Gemini](https://aistudio.google.com) · [HuggingFace](https://huggingface.co/settings/tokens) · [Groq](https://console.groq.com)
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/Dharini-MernStack/research-assistant-llm.git
-cd research-assistant-llm
-```
+### Backend Setup
 
-### 2. Setup Backend
 ```bash
 cd backend
 npm install
@@ -118,17 +139,18 @@ npm install
 
 Create `backend/.env`:
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
-HF_API_KEY=your_huggingface_token_here
+GEMINI_API_KEY=your_gemini_api_key
+HF_API_KEY=your_huggingface_token
+GROQ_API_KEY=your_groq_api_key
 ```
 
-Start backend:
 ```bash
 node server.js
+# → Server running on port 5000
 ```
-Backend runs on `http://localhost:5000`
 
-### 3. Setup Frontend
+### Frontend Setup
+
 ```bash
 cd frontend
 npm install
@@ -136,131 +158,100 @@ npm install
 
 Create `frontend/.env.local`:
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your_gemini_api_key
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
-Start frontend:
 ```bash
 npm run dev
+# → http://localhost:3000
 ```
-Frontend runs on `http://localhost:3000`
 
 ---
 
-## 📡 API Usage
+## 🔌 API Endpoints
 
-### Upload a PDF
-```
-POST http://localhost:5000/upload
-Content-Type: multipart/form-data
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/upload` | Upload PDF, returns summary + filename |
+| `POST` | `/upload/ask` | RAG Q&A with citations |
+| `GET` | `/` | Health check |
+| `POST` | `/api/chat` | Gemini streaming (Next.js route) |
 
-Body (form-data):
-  pdf      → your PDF file
-  question → "Summarize this document" (optional)
-```
-
-**Response:**
-```json
-{
-    "message": "Research complete",
-    "filename": "1234567890-yourfile.pdf",
-    "chunks": 8,
-    "answer": "..."
-}
+### Example: Upload PDF
+```bash
+curl -X POST https://research-assistant-backend-trsr.onrender.com/upload \
+  -F "pdf=@document.pdf" \
+  -F "question=Summarize this document"
 ```
 
-### Ask a Question (RAG)
+### Example: Ask a Question
+```bash
+curl -X POST https://research-assistant-backend-trsr.onrender.com/upload/ask \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "1234-doc.pdf", "question": "What are the key findings?"}'
 ```
-POST http://localhost:5000/upload/ask
-Content-Type: application/json
-
-{
-    "filename": "1234567890-yourfile.pdf",
-    "question": "What are the required skills?"
-}
-```
-
-**Response:**
-```json
-{
-    "question": "What are the required skills?",
-    "answer": "The required skills are...",
-    "citations": [
-        {
-            "chunkIndex": 3,
-            "score": 0.87,
-            "preview": "First 150 chars of the matching chunk..."
-        }
-    ]
-}
-```
-
-### Streaming Chat (Vercel AI SDK)
-```
-POST /api/chat
-Content-Type: application/json
-
-{
-    "messages": [...],
-    "context": "relevant chunks from RAG"
-}
-```
-Returns a **streaming response** powered by Vercel AI SDK + Google Gemini.
 
 ---
 
-## ✅ Day 1 — RAG Foundation
-- [x] PDF upload and storage
-- [x] Text extraction with pdf2json
-- [x] Text chunking with overlap (2000 chars, 200 overlap)
-- [x] Embeddings with HuggingFace (free)
-- [x] In-memory vector store with cosine similarity
+## 🌐 Deployment (Render)
 
-## ✅ Day 2 — Retrieval & Q&A
-- [x] Retriever with cosine similarity search
-- [x] `/ask` endpoint with full RAG pipeline
-- [x] Answer generation from relevant context only
-- [x] Citation extraction showing source chunks with scores
+### Backend Service
+| Setting | Value |
+|---------|-------|
+| Root Directory | `backend` |
+| Build Command | `npm install` |
+| Start Command | `node server.js` |
+| Env Vars | `GEMINI_API_KEY`, `HF_API_KEY`, `GROQ_API_KEY` |
 
-## ✅ Day 3 — Frontend
-- [x] Next.js frontend with Tailwind CSS
-- [x] PDF upload UI with drag and drop
-- [x] Auto summary after upload
-- [x] Chat interface with message history
-- [x] Citation display per message
+### Frontend Service
+| Setting | Value |
+|---------|-------|
+| Root Directory | `frontend` |
+| Build Command | `npm install && npm run build` |
+| Start Command | `npm start` |
+| Env Vars | `GEMINI_API_KEY`, `NEXT_PUBLIC_API_URL` |
 
-## ✅ Day 4 — SDK & Streaming
-- [x] Replaced Groq with Google Gemini SDK
-- [x] Integrated Vercel AI SDK `useChat` hook
-- [x] Real-time streaming responses
-- [x] Next.js API route for chat (`/api/chat`)
-- [x] SDK layer (`lib/api.js`) for all backend calls
-- [x] Deployed on Render (frontend + backend)
+> ⚠️ Free tier services sleep after 15 min inactivity. First request takes 30–60s to wake.
 
 ---
 
-## 🤝 Contributing
+## 🔑 Environment Variables
 
-Pull requests are welcome! For major changes, please open an issue first.
-
-1. Fork the repo
-2. Create your branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'feat: add your feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-[MIT](LICENSE)
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `GEMINI_API_KEY` | Backend + Frontend | Gemini LLM & streaming |
+| `HF_API_KEY` | Backend | HuggingFace embeddings |
+| `GROQ_API_KEY` | Backend | Fallback LLM |
+| `NEXT_PUBLIC_API_URL` | Frontend | Backend base URL |
 
 ---
 
-## 👨‍💻 Author
+## 🧩 How Tool Calling Works
 
-Built with ❤️ by [Dharini](https://github.com/Dharini-MernStack/research-assistant-llm-project)
+When a user asks a question, here's what happens under the hood:
 
+1. **User message** → sent to Gemini with a tool definition for `retrieve_document_context`
+2. **Gemini decides** to call the tool with a search query (e.g., `"SAP Finance certification"`)
+3. **Retriever executes** — embeds the query, runs cosine similarity against stored vectors
+4. **Top 5 chunks** returned as tool result to Gemini
+5. **Gemini generates** a grounded answer using only the retrieved context
+6. **Response streams** back to the frontend word by word
 
-> ⭐ If this project helped you, please give it a star!
+```
+Backend logs:
+🤖 Trying Gemini with tool calling...
+🔧 Tool called — query: "key findings section 3"
+📄 Retrieved 5 chunks
+✅ Gemini responded
+```
+
+---
+
+## 📝 License
+
+MIT — free to use, modify, and deploy.
+
+---
+
+Built with ❤️ using Node.js, Next.js, Google Gemini, HuggingFace, and Vercel AI SDK.
